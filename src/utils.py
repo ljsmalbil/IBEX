@@ -187,13 +187,6 @@ def compute_pe_2(
 
             sq_err_sum += (best_true_val - y_true_at_pred) ** 2
 
-    # ---------------------------------------------------------------- result
-    rpe = np.sqrt(sq_err_sum / N)
-
-    
-    # print(f"Estimated sqrt-Policy Error: {rpe:.4f}")
-
-    # print(f"Estimated sqrt-Policy Error MEEE: {np.sqrt(sq_err_sum_me/ N):.4f}")
     return np.sqrt(sq_err_sum_me/ N)
 
 
