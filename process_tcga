@@ -1,0 +1,102 @@
+import os
+import io
+import sqlite3
+import datetime
+import numpy as np
+from os.path import join
+from pandas import read_csv
+from src.t_y_gen import *
+
+import numpy as np
+import ast
+
+from scipy.stats import beta as beta_dist
+from sklearn.model_selection import train_test_split
+
+import sqlite3
+import pandas as pd
+
+from CCS_divergence import *
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from sklearn.preprocessing import StandardScaler, Normalizer
+from scipy.special import expit
+import matplotlib.pyplot as plt
+
+
+from networks import CCS_Counterfactual_Net
+
+# Set the random seed for reproducibility
+torch.manual_seed(42)
+np.random.seed(42)
+
+# 1) Open a connection
+con = sqlite3.connect("db/tcga.db")   # adjust path if needed
+
+# 2) List all tables
+tables = pd.read_sql(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';",
+    con
+)
+print(tables)
+
+# 3) Read a whole table (replace 'my_table')
+df_clinical = pd.read_sql("SELECT * FROM clinical;", con)
+df_rnaseq = pd.read_sql("SELECT * FROM rnaseq;", con)
+df_methylation = pd.read_sql("SELECT * FROM methylation;", con)
+df_snp = pd.read_sql("SELECT * FROM snp;", con)
+
+# rename for merging
+df_rnaseq = df_rnaseq.drop(columns = ['id'])
+df_rnaseq.columns = ['data', 'id']
+
+# merge on id
+data = pd.merge(df_clinical, df_rnaseq, on=['id'], how='inner')
+
+# decode for genomics data
+encoded = []
+
+for i in range(len(data)):
+    byte_data = ast.literal_eval(str(df_rnaseq['data'][i]))
+    arr = list(np.load(io.BytesIO(byte_data)))    
+    encoded.append(arr)
+
+cols = [f"X_{str(i)}" for i in range(len(encoded[0]))]
+encoded = pd.DataFrame(encoded, columns = cols)
+
+data = data.drop(columns = ['data'])
+data = pd.concat([data, encoded], axis = 1)
+# Automatically encode non-numeric columns
+for col in data.select_dtypes(include=['object', 'category']).columns:
+    data[col], _ = pd.factorize(data[col])
+
+# drop uninformative single-valued columns
+constant_cols = [col for col in data.columns if data[col].nunique() == 1]
+#print("Columns with only one unique value:", constant_cols)
+data = data.drop(columns=constant_cols)
+
+# select 4000 most variable genes
+# Step 1: Compute variance of each column (gene)
+variances = data.var(axis=0)  # axis=0 → column-wise
+
+# Step 2: Select top 4000 columns by variance
+top_4000_genes = variances.sort_values(ascending=False).head(4000).index
+
+# Step 3: Subset the DataFrame to only those genes
+data = data[top_4000_genes]
+
+scaler = StandardScaler()
+data = pd.DataFrame(scaler.fit_transform(data), columns=data.columns)
+
+# Step 2: Scale each sample (row) to have norm 1
+normalizer = Normalizer(norm='l2')
+data = pd.DataFrame(normalizer.fit_transform(data), columns=data.columns)
+
+treatments, v2, v3 = assign_treatments_tcga(data)
+y, v1, v2, v3 = generate_tcga_outcomes(data, treatments.reshape(-1,1))
+
+X_train, X_test, y_train, y_test, t, t_test = train_test_split(
+    data, y, treatments, test_size=0.2, random_state=42
+)
