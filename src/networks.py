@@ -110,7 +110,7 @@ class TorchBSplineBasis(nn.Module):
             return basis  # shape: (batch, num_basis ** input_dim)
 
 class CCS_Counterfactual_Net(nn.Module):
-    def __init__(self, x_dim, t_dim_latent, z_dim, y_dim, hidden_dim=512, hidden_dim_t=16, attn_dim=64,
+    def __init__(self, x_dim, t_dim_latent, z_dim, y_dim, t_input_dim = 1, hidden_dim=512, hidden_dim_t=16, attn_dim=64,
                  use_attention=True, use_spline=True):
         super().__init__()
         self.use_attention = use_attention
@@ -127,7 +127,7 @@ class CCS_Counterfactual_Net(nn.Module):
             self.spline_encoder = TorchBSplineBasis(num_basis=10, degree=3, treatment_range=(0.0, 1.0))
             t_input_dim = 10  # B-spline basis size
         else:
-            t_input_dim = 1  # Raw treatment input dimension (assumed scalar)
+            t_input_dim = t_input_dim  # Raw treatment input dimension (assumed scalar)
 
         self.encoder_t = nn.Sequential(
             nn.Linear(t_input_dim, hidden_dim_t),
@@ -170,4 +170,4 @@ class CCS_Counterfactual_Net(nn.Module):
             z_attn = z
 
         y_pred = self.decoder_y(z_attn)
-        return z, t_logits, y_pred
+        return z, t_latent, y_pred

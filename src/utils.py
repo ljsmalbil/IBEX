@@ -58,6 +58,8 @@ def compute_mise(
         x_n = x_test[n].unsqueeze(0)  # shape (1, x_dim)
         integral_error = 0.0
 
+        #print(f"Current: {n/N}")
+
         for dose_vec in dose_combinations:
             t_input = torch.tensor(dose_vec, dtype=torch.float32).unsqueeze(0)  # shape (1, t_dim)
 
@@ -76,10 +78,6 @@ def compute_mise(
 
             y_true = torch.tensor(y_true_val, dtype=torch.float32)
 
-            # Squared error
-            # print(y_true)
-            # print(y_pred)
-
             #error = criterion(y_true, y_pred)#(y_true - y_pred.detach().cpu().numpy())**2
             error = criterion(y_true,y_pred)
             integral_error += error.item()
@@ -87,8 +85,6 @@ def compute_mise(
         mise += integral_error * step_size
 
     mise /= N
-    #mise = np.sqrt(mise)
-    #print(f"Estimated sqrt. MISE (over {'2D' if source == 'mimic/data' else '1D'} dose space): {np.sqrt(mise):.4f}")
     return np.sqrt(mise)
 
 

@@ -26,6 +26,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.preprocessing import normalize
 
+import argparse
+
 
 # ---------------------------------------------------------------------
 # 1 · Data loading
@@ -33,6 +35,20 @@ from sklearn.preprocessing import normalize
 NUMBER_OF_FEATURES = 3477           # size of the fixed vocabulary
 N_DOCS              = 5000          # first 5 000 articles
 
+
+import argparse
+
+
+parser = argparse.ArgumentParser(
+    description="Train CCS Counterfactual Net with fixed defaults.",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+)
+
+parser.add_argument(
+        "--seed", default=527, help="Dataset",
+    )
+
+parser.parse_args()
 
 def load_docword_matrix(path: str,
                         num_docs: int = N_DOCS,
@@ -58,7 +74,7 @@ def init_v(random_seed: int, dim_cov: int):
     Draw three Gaussian vectors and L2-normalise them.
     Returns v1, v2, v3   each shaped (dim_cov,).
     """
-    rng          = np.random.default_rng(random_seed)
+    rng          = np.random.default_rng(SEED)
     v1p, v2p, v3p = rng.normal(0.0, 1.0, size=(3, dim_cov))
     v1, v2, v3    = [v / np.linalg.norm(v, 2) for v in (v1p, v2p, v3p)]
     return v1.astype(np.float32), v2.astype(np.float32), v3.astype(np.float32)
@@ -139,7 +155,7 @@ def simulate_data(x: np.ndarray,
 def main():
 
     # ---------- configuration ----------
-    data_dir        = "data"
+    data_dir        = "data/news"
     docword_gz      = os.path.join(data_dir, "docword.nytimes.txt.gz")
     random_seed     = SEED #42#592#468#42#468 #592, 468, 345
     selection_bias  = 2#2.0          # α in the Beta distribution
